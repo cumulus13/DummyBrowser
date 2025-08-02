@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyTitle>Link Clipboard Manager</AssemblyTitle>
+    <AssemblyDescription>Copy links to clipboard instead of opening browser</AssemblyDescription>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Company>Your Company</Company>
+    <Product>Dummy Browser</Product>
+  </PropertyGroup>
+
+
+
+</Project>
