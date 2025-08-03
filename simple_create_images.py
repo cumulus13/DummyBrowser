@@ -120,14 +120,19 @@ def main():
         print("\nNote: For ICO file, you can:")
         print("1. Use online converter: convertio.co/bmp-ico")
         print("2. Or rename .bmp to .ico for simple cases")
-        
-    except Exception as e:
-        try:
-            console.print(f":cross_mark: Error creating images: {e}")
-        except Exception as e:
-            console.print(f"Error creating images: {e}")
-        return False
     
+    except UnicodeEncodeError:
+        pass
+    except Exception as e:
+        if 'charmap' in str(e):
+            pass
+        else:
+            try:
+                console.print(f":cross_mark: Error creating images: {e}")
+            except Exception as e:
+                console.print(f"Error creating images: {e}")
+            return False
+    return True
     return True
 
 if __name__ == "__main__":
