@@ -30,7 +30,7 @@ jobs:
     - name: Create dummy images (if Python available)
       run: |
         try {
-          pip install Pillow
+          pip install Pillow rich
           python simple_create_images.py
         } catch {
           Write-Host "Python not available, skipping image creation"
