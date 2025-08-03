@@ -87,19 +87,19 @@ def main():
         # Create wizard background image (497x314)
         wizard_img = create_wizard_image()
         wizard_img.save('assets/wizard_image.bmp', 'BMP')
-        print("✓ Created wizard_image.bmp (497x314)")
+        console.print(":heavy_check_mark: Created wizard_image.bmp (497x314)")
         
         # Create small wizard icon (55x55)  
         small_img = create_wizard_small()
         small_img.save('assets/wizard_small.bmp', 'BMP')
-        print("✓ Created wizard_small.bmp (55x55)")
+        console.print(":heavy_check_mark: Created wizard_small.bmp (55x55)")
         
         # Create setup icon (32x32)
         icon_img = create_simple_icon()
         icon_img.save('assets/setup_icon_32.bmp', 'BMP')
-        console.print("✓ Created setup_icon_32.bmp (32x32)")
+        console.print(":heavy_check_mark: Created setup_icon_32.bmp (32x32)")
         
-        console.print("\n🎉 All images created successfully!")
+        console.print("\n:bouquet: All images created successfully!")
         print("\nFiles created:")
         print("  - assets/wizard_image.bmp (497x314) - Background image")
         print("  - assets/wizard_small.bmp (55x55) - Small logo")
@@ -110,7 +110,7 @@ def main():
         print("2. Or rename .bmp to .ico for simple cases")
         
     except Exception as e:
-        console.print(f"❌ Error creating images: {e}")
+        console.print(f":cross_mark: Error creating images: {e}")
         return False
     
     return True
