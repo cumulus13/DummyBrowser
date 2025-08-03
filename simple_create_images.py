@@ -1,6 +1,8 @@
 # Simple script untuk membuat Inno Setup images tanpa font issues
 from PIL import Image, ImageDraw
 import os
+from rich.console import Console
+console = Console()
 
 def create_wizard_image():
     """Create wizard background image (497x314)"""
@@ -95,9 +97,9 @@ def main():
         # Create setup icon (32x32)
         icon_img = create_simple_icon()
         icon_img.save('assets/setup_icon_32.bmp', 'BMP')
-        print("✓ Created setup_icon_32.bmp (32x32)")
+        console.print("✓ Created setup_icon_32.bmp (32x32)")
         
-        print("\n🎉 All images created successfully!")
+        console.print("\n🎉 All images created successfully!")
         print("\nFiles created:")
         print("  - assets/wizard_image.bmp (497x314) - Background image")
         print("  - assets/wizard_small.bmp (55x55) - Small logo")
@@ -108,7 +110,7 @@ def main():
         print("2. Or rename .bmp to .ico for simple cases")
         
     except Exception as e:
-        print(f"❌ Error creating images: {e}")
+        console.print(f"❌ Error creating images: {e}")
         return False
     
     return True
