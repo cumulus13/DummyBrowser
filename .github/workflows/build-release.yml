@@ -1,0 +1,118 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 6.0.x
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Create assets directory
+      run: mkdir assets -ErrorAction SilentlyContinue
+      
+    - name: Create dummy images (if Python available)
+      run: |
+        try {
+          pip install Pillow
+          python simple_create_images.py
+        } catch {
+          Write-Host "Python not available, skipping image creation"
+        }
+      shell: powershell
+      continue-on-error: true
+      
+    - name: Setup Inno Setup
+      run: |
+        Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "innosetup.exe"
+        Start-Process -FilePath "innosetup.exe" -ArgumentList "/SILENT" -Wait
+      shell: powershell
+      
+    - name: Build Installer
+      run: |
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" DummyBrowser.iss
+      shell: powershell
+      
+    - name: Get version from tag
+      id: version
+      run: |
+        $version = "${{ github.ref_name }}" -replace '^v', ''
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+      shell: powershell
+      
+    - name: Create Release
+      uses: actions/create-release@v1
+      id: create_release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Link Clipboard Manager ${{ github.ref }}
+        body: |
+          ## Changes in this Release
+          - Built from commit: ${{ github.sha }}
+          - Release date: ${{ github.event.head_commit.timestamp }}
+          
+          ## Installation
+          1. Download `LinkClipboardManager_Setup.exe`
+          2. Run as Administrator
+          3. Follow the installation wizard
+          4. The app will be registered as a browser alternative
+          
+          ## Quick Install via Git
+          ```bash
+          git clone https://github.com/cumulus13/DummyBrowser.git
+          cd DummyBrowser
+          dotnet build -c Release
+          cd bin\Release\net7.0-windows
+          # Run setup_registry.bat as Administrator
+          ```
+          
+          ## What's New
+          - Automatic Windows integration
+          - JSON configuration support
+          - Professional installer package
+          - Auto-update notifications
+        draft: false
+        prerelease: false
+        
+    - name: Upload Installer
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: installer_output/LinkClipboardManager_Setup.exe
+        asset_name: LinkClipboardManager_Setup.exe
+        asset_content_type: application/octet-stream
+        
+    - name: Upload Portable Version
+      run: |
+        Compress-Archive -Path "bin\Release\net7.0-windows\*" -DestinationPath "LinkClipboardManager_Portable.zip"
+      shell: powershell
+      
+    - name: Upload Portable Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: LinkClipboardManager_Portable.zip
+        asset_name: LinkClipboardManager_Portable.zip
+        asset_content_type: application/zip
