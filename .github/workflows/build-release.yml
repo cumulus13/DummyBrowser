@@ -82,6 +82,26 @@ jobs:
           "THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND." | Out-File -FilePath "LICENSE.txt" -Encoding UTF8 -Append
         }
       
+    - name: Check Build Output
+      shell: powershell
+      run: |
+        Write-Host "=== Checking build output structure ==="
+        Write-Host "Current directory:"
+        Get-Location
+        
+        Write-Host "`nBin directory contents:"
+        if (Test-Path "bin") {
+          Get-ChildItem "bin" -Recurse | Select-Object FullName, Length
+        } else {
+          Write-Host "No bin directory found"
+        }
+        
+        Write-Host "`nLooking for DummyBrowser.exe:"
+        Get-ChildItem -Path . -Name "DummyBrowser.exe" -Recurse -ErrorAction SilentlyContinue
+        
+        Write-Host "`nAll .exe files:"
+        Get-ChildItem -Path . -Name "*.exe" -Recurse -ErrorAction SilentlyContinue
+
     - name: Build Installer
       shell: powershell
       run: |
@@ -104,6 +124,40 @@ jobs:
         
         Write-Host "Using Inno Setup at: $isccPath"
         
+        # Find the actual build output directory
+        $possiblePaths = @(
+          "bin\Release\net7.0-windows",
+          "bin\Release\net6.0-windows", 
+          "bin\Release\net8.0-windows",
+          "bin\Release\netcoreapp3.1",
+          "bin\Release"
+        )
+        
+        $buildPath = $null
+        foreach ($path in $possiblePaths) {
+          if (Test-Path "$path\DummyBrowser.exe") {
+            $buildPath = $path
+            Write-Host "Found build output at: $buildPath"
+            break
+          }
+        }
+        
+        if (-not $buildPath) {
+          Write-Host "ERROR: Could not find DummyBrowser.exe in any expected location"
+          Write-Host "Checked paths:"
+          foreach ($path in $possiblePaths) {
+            Write-Host "  - $path"
+          }
+          throw "Build output not found"
+        }
+        
+        # Update the ISS file with the correct path
+        $issContent = Get-Content "DummyBrowser.iss" -Raw
+        $issContent = $issContent -replace 'bin\\Release\\net7\.0-windows', $buildPath.Replace('\', '\\')
+        $issContent | Set-Content "DummyBrowser.iss" -Encoding UTF8
+        
+        Write-Host "Updated DummyBrowser.iss with build path: $buildPath"
+        
         if (-not (Test-Path "installer_output")) {
           mkdir installer_output
         }
@@ -125,8 +179,29 @@ jobs:
     - name: Create Portable Version
       shell: powershell
       run: |
+        # Find the actual build output directory
+        $possiblePaths = @(
+          "bin\Release\net7.0-windows",
+          "bin\Release\net6.0-windows", 
+          "bin\Release\net8.0-windows",
+          "bin\Release\netcoreapp3.1",
+          "bin\Release"
+        )
+        
+        $releaseDir = $null
+        foreach ($path in $possiblePaths) {
+          if (Test-Path "$path\DummyBrowser.exe") {
+            $releaseDir = $path
+            Write-Host "Using release directory: $releaseDir"
+            break
+          }
+        }
+        
+        if (-not $releaseDir) {
+          throw "Could not find build output directory"
+        }
+        
         $portableDir = "LinkClipboardManager_Portable"
-        $releaseDir = "bin\Release\net7.0-windows"
         
         if (Test-Path $portableDir) {
           Remove-Item $portableDir -Recurse -Force
