@@ -40,6 +40,7 @@ jobs:
       continue-on-error: true
       
     - name: Setup Inno Setup
+      shell: powershell
       run: |
         $url = "https://files.jrsoftware.org/is/6/innosetup-6.2.2.exe"
         $output = "innosetup-installer.exe"
@@ -54,28 +55,35 @@ jobs:
         
         $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
         if (Test-Path $isccPath) {
-          Write-Host "✓ Inno Setup installed successfully at: $isccPath"
+          Write-Host "Inno Setup installed successfully at: $isccPath"
         } else {
           Write-Host "Checking alternative location..."
           $altPath = "C:\Program Files\Inno Setup 6\ISCC.exe"
           if (Test-Path $altPath) {
-            Write-Host "✓ Found Inno Setup at: $altPath"
+            Write-Host "Found Inno Setup at: $altPath"
           } else {
-            throw "✗ Inno Setup installation failed - ISCC.exe not found"
+            throw "Inno Setup installation failed - ISCC.exe not found"
           }
         }
-      shell: powershell
       
     - name: Create LICENSE.txt if missing
+      shell: powershell
       run: |
         if (-not (Test-Path "LICENSE.txt")) {
           Write-Host "Creating default LICENSE.txt..."
-          $licenseText = "MIT License`n`nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the `"Software`"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:`n`nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.`n`nTHE SOFTWARE IS PROVIDED `"AS IS`", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
-          $licenseText | Out-File -FilePath "LICENSE.txt" -Encoding UTF8
+          "MIT License" | Out-File -FilePath "LICENSE.txt" -Encoding UTF8
+          "" | Out-File -FilePath "LICENSE.txt" -Encoding UTF8 -Append
+          "Permission is hereby granted, free of charge, to any person obtaining a copy" | Out-File -FilePath "LICENSE.txt" -Encoding UTF8 -Append
+          "of this software and associated documentation files, to deal in the Software" | Out-File -FilePath "LICENSE.txt" -Encoding UTF8 -Append
+          "without restriction, including without limitation the rights to use, copy," | Out-File -FilePath "LICENSE.txt" -Encoding UTF8 -Append
+          "modify, merge, publish, distribute, sublicense, and/or sell copies of the" | Out-File -FilePath "LICENSE.txt" -Encoding UTF8 -Append
+          "Software, and to permit persons to whom the Software is furnished to do so." | Out-File -FilePath "LICENSE.txt" -Encoding UTF8 -Append
+          "" | Out-File -FilePath "LICENSE.txt" -Encoding UTF8 -Append
+          "THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND." | Out-File -FilePath "LICENSE.txt" -Encoding UTF8 -Append
         }
-      shell: powershell
       
     - name: Build Installer
+      shell: powershell
       run: |
         $isccPaths = @(
           "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
@@ -113,9 +121,9 @@ jobs:
         } else {
           throw "Installer file not found at: $installerPath"
         }
-      shell: powershell
       
     - name: Create Portable Version
+      shell: powershell
       run: |
         $portableDir = "LinkClipboardManager_Portable"
         $releaseDir = "bin\Release\net7.0-windows"
@@ -133,26 +141,35 @@ jobs:
         
         $configPath = "$portableDir\config.json"
         if (-not (Test-Path $configPath)) {
-          $configText = "{ `"ShowPrompt`": true, `"AppName`": `"Link Clipboard Manager`", `"ShowSuccessMessage`": true }"
-          $configText | Out-File -FilePath $configPath -Encoding UTF8
+          "{" | Out-File -FilePath $configPath -Encoding UTF8
+          '  "ShowPrompt": true,' | Out-File -FilePath $configPath -Encoding UTF8 -Append
+          '  "AppName": "Link Clipboard Manager",' | Out-File -FilePath $configPath -Encoding UTF8 -Append
+          '  "ShowSuccessMessage": true' | Out-File -FilePath $configPath -Encoding UTF8 -Append
+          "}" | Out-File -FilePath $configPath -Encoding UTF8 -Append
         }
         
-        $readmeText = "# Link Clipboard Manager - Portable Version`n`n## Quick Setup`n1. Run 'setup_registry.bat' as Administrator`n2. The application will be registered as a browser option`n3. Right-click any link and choose 'Open with Link Clipboard Manager'`n`n## Manual Usage`nRun: DummyBrowser.exe `"https://example.com`"`n`n## Configuration`nEdit config.json to customize behavior."
-        $readmeText | Out-File -FilePath "$portableDir\PORTABLE_README.txt" -Encoding UTF8
+        $readmePath = "$portableDir\PORTABLE_README.txt"
+        "# Link Clipboard Manager - Portable Version" | Out-File -FilePath $readmePath -Encoding UTF8
+        "" | Out-File -FilePath $readmePath -Encoding UTF8 -Append
+        "## Quick Setup" | Out-File -FilePath $readmePath -Encoding UTF8 -Append
+        "1. Run 'setup_registry.bat' as Administrator" | Out-File -FilePath $readmePath -Encoding UTF8 -Append
+        "2. The application will be registered as a browser option" | Out-File -FilePath $readmePath -Encoding UTF8 -Append
+        "" | Out-File -FilePath $readmePath -Encoding UTF8 -Append
+        "## Manual Usage" | Out-File -FilePath $readmePath -Encoding UTF8 -Append
+        'Run: DummyBrowser.exe "https://example.com"' | Out-File -FilePath $readmePath -Encoding UTF8 -Append
         
         Compress-Archive -Path $portableDir -DestinationPath "LinkClipboardManager_Portable.zip" -Force
         
         $zipSize = (Get-Item "LinkClipboardManager_Portable.zip").Length
         Write-Host "Portable version created: LinkClipboardManager_Portable.zip ($([math]::Round($zipSize/1MB, 2)) MB)"
-      shell: powershell
       
     - name: Get version from tag
       id: version
+      shell: powershell
       run: |
         $version = "${{ github.ref_name }}" -replace '^v', ''
         echo "VERSION=$version" >> $env:GITHUB_OUTPUT
         Write-Host "Version: $version"
-      shell: powershell
       
     - name: Create Release
       uses: softprops/action-gh-release@v1
