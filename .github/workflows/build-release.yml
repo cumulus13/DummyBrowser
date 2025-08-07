@@ -70,27 +70,7 @@ jobs:
       run: |
         if (-not (Test-Path "LICENSE.txt")) {
           Write-Host "Creating default LICENSE.txt..."
-          $licenseText = @"
-        MIT License
-        
-        Permission is hereby granted, free of charge, to any person obtaining a copy
-        of this software and associated documentation files (the "Software"), to deal
-        in the Software without restriction, including without limitation the rights
-        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-        copies of the Software, and to permit persons to whom the Software is
-        furnished to do so, subject to the following conditions:
-        
-        The above copyright notice and this permission notice shall be included in all
-        copies or substantial portions of the Software.
-        
-        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-        SOFTWARE.
-        "@
+          $licenseText = "MIT License`n`nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the `"Software`"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:`n`nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.`n`nTHE SOFTWARE IS PROVIDED `"AS IS`", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
           $licenseText | Out-File -FilePath "LICENSE.txt" -Encoding UTF8
         }
       shell: powershell
@@ -153,30 +133,11 @@ jobs:
         
         $configPath = "$portableDir\config.json"
         if (-not (Test-Path $configPath)) {
-          $configText = @"
-        {
-          "ShowPrompt": true,
-          "AppName": "Link Clipboard Manager",
-          "ShowSuccessMessage": true
-        }
-        "@
+          $configText = "{ `"ShowPrompt`": true, `"AppName`": `"Link Clipboard Manager`", `"ShowSuccessMessage`": true }"
           $configText | Out-File -FilePath $configPath -Encoding UTF8
         }
         
-        $readmeText = @"
-        # Link Clipboard Manager - Portable Version
-        
-        ## Quick Setup
-        1. Run 'setup_registry.bat' as Administrator
-        2. The application will be registered as a browser option
-        3. Right-click any link and choose "Open with Link Clipboard Manager"
-        
-        ## Manual Usage
-        Run: DummyBrowser.exe "https://example.com"
-        
-        ## Configuration
-        Edit config.json to customize behavior.
-        "@
+        $readmeText = "# Link Clipboard Manager - Portable Version`n`n## Quick Setup`n1. Run 'setup_registry.bat' as Administrator`n2. The application will be registered as a browser option`n3. Right-click any link and choose 'Open with Link Clipboard Manager'`n`n## Manual Usage`nRun: DummyBrowser.exe `"https://example.com`"`n`n## Configuration`nEdit config.json to customize behavior."
         $readmeText | Out-File -FilePath "$portableDir\PORTABLE_README.txt" -Encoding UTF8
         
         Compress-Archive -Path $portableDir -DestinationPath "LinkClipboardManager_Portable.zip" -Force
