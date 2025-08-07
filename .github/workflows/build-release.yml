@@ -11,10 +11,10 @@ jobs:
     runs-on: windows-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 7.0.x
         
@@ -26,6 +26,7 @@ jobs:
       
     - name: Create assets directory
       run: mkdir assets -ErrorAction SilentlyContinue
+      shell: powershell
       
     - name: Create dummy images (if Python available)
       run: |
@@ -40,13 +41,106 @@ jobs:
       
     - name: Setup Inno Setup
       run: |
-        Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "innosetup.exe"
-        Start-Process -FilePath "innosetup.exe" -ArgumentList "/SILENT" -Wait
+        # Download Inno Setup 6.2.2 (latest stable)
+        $url = "https://files.jrsoftware.org/is/6/innosetup-6.2.2.exe"
+        $output = "innosetup-installer.exe"
+        
+        Write-Host "Downloading Inno Setup from: $url"
+        Invoke-WebRequest -Uri $url -OutFile $output -UserAgent "Mozilla/5.0"
+        
+        Write-Host "Installing Inno Setup..."
+        Start-Process -FilePath $output -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait -PassThru
+        
+        # Wait a moment for installation to complete
+        Start-Sleep -Seconds 10
+        
+        # Verify installation
+        $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+        if (Test-Path $isccPath) {
+          Write-Host "✓ Inno Setup installed successfully at: $isccPath"
+          & $isccPath
+        } else {
+          Write-Host "✗ Inno Setup not found at expected location"
+          # Try alternative locations
+          $altPath = "C:\Program Files\Inno Setup 6\ISCC.exe"
+          if (Test-Path $altPath) {
+            Write-Host "✓ Found Inno Setup at: $altPath"
+          } else {
+            throw "Inno Setup installation failed"
+          }
+        }
+      shell: powershell
+      
+    - name: Create LICENSE.txt if missing
+      run: |
+        if (-not (Test-Path "LICENSE.txt")) {
+          Write-Host "Creating default LICENSE.txt..."
+          @"
+        MIT License
+        
+        Permission is hereby granted, free of charge, to any person obtaining a copy
+        of this software and associated documentation files (the "Software"), to deal
+        in the Software without restriction, including without limitation the rights
+        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        copies of the Software, and to permit persons to whom the Software is
+        furnished to do so, subject to the following conditions:
+        
+        The above copyright notice and this permission notice shall be included in all
+        copies or substantial portions of the Software.
+        
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+        SOFTWARE.
+        "@ | Out-File -FilePath "LICENSE.txt" -Encoding UTF8
+        }
       shell: powershell
       
     - name: Build Installer
       run: |
-        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" DummyBrowser.iss
+        # Try multiple possible Inno Setup locations
+        $isccPaths = @(
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+          "C:\Program Files\Inno Setup 6\ISCC.exe"
+        )
+        
+        $isccPath = $null
+        foreach ($path in $isccPaths) {
+          if (Test-Path $path) {
+            $isccPath = $path
+            break
+          }
+        }
+        
+        if (-not $isccPath) {
+          throw "ISCC.exe not found in any expected location"
+        }
+        
+        Write-Host "Using Inno Setup at: $isccPath"
+        
+        # Ensure installer_output directory exists
+        if (-not (Test-Path "installer_output")) {
+          mkdir installer_output
+        }
+        
+        # Build the installer
+        & $isccPath "DummyBrowser.iss"
+        
+        if ($LASTEXITCODE -ne 0) {
+          throw "Inno Setup build failed with exit code: $LASTEXITCODE"
+        }
+        
+        # Verify installer was created
+        $installerPath = "installer_output\LinkClipboardManager_Setup.exe"
+        if (Test-Path $installerPath) {
+          $size = (Get-Item $installerPath).Length
+          Write-Host "✓ Installer created successfully: $installerPath ($([math]::Round($size/1MB, 2)) MB)"
+        } else {
+          throw "Installer file not found at: $installerPath"
+        }
       shell: powershell
       
     - name: Get version from tag
@@ -54,28 +148,32 @@ jobs:
       run: |
         $version = "${{ github.ref_name }}" -replace '^v', ''
         echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        Write-Host "Version: $version"
       shell: powershell
       
     - name: Create Release
-      uses: actions/create-release@v1
-      id: create_release
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Link Clipboard Manager ${{ github.ref }}
+        name: Link Clipboard Manager ${{ github.ref_name }}
         body: |
-          ## Changes in this Release
-          - Built from commit: ${{ github.sha }}
-          - Release date: ${{ github.event.head_commit.timestamp }}
+          ## 🎉 Link Clipboard Manager ${{ github.ref_name }}
           
-          ## Installation
-          1. Download `LinkClipboardManager_Setup.exe`
+          A lightweight tool that copies URLs to clipboard instead of opening them in a browser.
+          
+          ### 📦 Installation Options
+          
+          **Option 1: Easy Installer (Recommended)**
+          1. Download `LinkClipboardManager_Setup.exe` below
           2. Run as Administrator
           3. Follow the installation wizard
-          4. The app will be registered as a browser alternative
+          4. The app will be automatically registered as a browser option
           
-          ## Quick Install via Git
+          **Option 2: Portable Version**
+          1. Download `LinkClipboardManager_Portable.zip`
+          2. Extract to any folder
+          3. Run `setup_registry.bat` as Administrator to register
+          
+          **Option 3: Build from Source**
           ```bash
           git clone https://github.com/cumulus13/DummyBrowser.git
           cd DummyBrowser
@@ -84,35 +182,85 @@ jobs:
           # Run setup_registry.bat as Administrator
           ```
           
-          ## What's New
-          - Automatic Windows integration
-          - JSON configuration support
-          - Professional installer package
-          - Auto-update notifications
-        draft: false
-        prerelease: false
+          ### ✨ Features
+          - 📋 Copies links to clipboard instead of opening browser
+          - ⚙️ Configurable via JSON file
+          - 🔧 Easy Windows integration
+          - 🎨 Professional installer
+          - 🔄 Auto-update notifications
+          
+          ### 🔧 Configuration
+          Edit `config.json` to customize:
+          - `ShowPrompt`: Show confirmation dialog
+          - `AppName`: Display name
+          - `ShowSuccessMessage`: Show success notification
+          
+          ### 📝 Release Info
+          - **Built from:** ${{ github.sha }}
+          - **Build date:** ${{ github.event.head_commit.timestamp }}
+          - **Platform:** Windows (.NET 7.0)
+        files: |
+          installer_output/LinkClipboardManager_Setup.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
-    - name: Upload Installer
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: installer_output/LinkClipboardManager_Setup.exe
-        asset_name: LinkClipboardManager_Setup.exe
-        asset_content_type: application/octet-stream
-        
-    - name: Upload Portable Version
+    - name: Create Portable Version
       run: |
-        Compress-Archive -Path "bin\Release\net7.0-windows\*" -DestinationPath "LinkClipboardManager_Portable.zip"
+        # Create portable package
+        $portableDir = "LinkClipboardManager_Portable"
+        $releaseDir = "bin\Release\net7.0-windows"
+        
+        if (Test-Path $portableDir) {
+          Remove-Item $portableDir -Recurse -Force
+        }
+        mkdir $portableDir
+        
+        # Copy application files
+        Copy-Item "$releaseDir\*" $portableDir -Recurse
+        
+        # Copy additional files
+        if (Test-Path "README.md") { Copy-Item "README.md" $portableDir }
+        if (Test-Path "LICENSE.txt") { Copy-Item "LICENSE.txt" $portableDir }
+        if (Test-Path "setup_registry.bat") { Copy-Item "setup_registry.bat" $portableDir }
+        
+        # Create default config if not exists
+        $configPath = "$portableDir\config.json"
+        if (-not (Test-Path $configPath)) {
+          @"
+        {
+          "ShowPrompt": true,
+          "AppName": "Link Clipboard Manager",
+          "ShowSuccessMessage": true
+        }
+        "@ | Out-File -FilePath $configPath -Encoding UTF8
+        }
+        
+        # Create portable readme
+        @"
+        # Link Clipboard Manager - Portable Version
+        
+        ## Quick Setup
+        1. Run 'setup_registry.bat' as Administrator
+        2. The application will be registered as a browser option
+        3. Right-click any link and choose "Open with Link Clipboard Manager"
+        
+        ## Manual Usage
+        Run: DummyBrowser.exe "https://example.com"
+        
+        ## Configuration
+        Edit config.json to customize behavior.
+        "@ | Out-File -FilePath "$portableDir\PORTABLE_README.txt" -Encoding UTF8
+        
+        # Create zip
+        Compress-Archive -Path $portableDir -DestinationPath "LinkClipboardManager_Portable.zip" -Force
+        
+        $zipSize = (Get-Item "LinkClipboardManager_Portable.zip").Length
+        Write-Host "✓ Portable version created: LinkClipboardManager_Portable.zip ($([math]::Round($zipSize/1MB, 2)) MB)"
       shell: powershell
       
-    - name: Upload Portable Asset
-      uses: actions/upload-release-asset@v1
+    - name: Upload Portable to Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: LinkClipboardManager_Portable.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: LinkClipboardManager_Portable.zip
-        asset_name: LinkClipboardManager_Portable.zip
-        asset_content_type: application/zip
