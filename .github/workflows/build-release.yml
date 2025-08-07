@@ -54,15 +54,14 @@ jobs:
         
         $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
         if (Test-Path $isccPath) {
-          Write-Host "Inno Setup installed successfully at: $isccPath"
-          & $isccPath
+          Write-Host "✓ Inno Setup installed successfully at: $isccPath"
         } else {
-          Write-Host "Inno Setup not found at expected location"
+          Write-Host "Checking alternative location..."
           $altPath = "C:\Program Files\Inno Setup 6\ISCC.exe"
           if (Test-Path $altPath) {
-            Write-Host "Found Inno Setup at: $altPath"
+            Write-Host "✓ Found Inno Setup at: $altPath"
           } else {
-            throw "Inno Setup installation failed"
+            throw "✗ Inno Setup installation failed - ISCC.exe not found"
           }
         }
       shell: powershell
