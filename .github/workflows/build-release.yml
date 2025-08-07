@@ -41,7 +41,6 @@ jobs:
       
     - name: Setup Inno Setup
       run: |
-        # Download Inno Setup 6.2.2 (latest stable)
         $url = "https://files.jrsoftware.org/is/6/innosetup-6.2.2.exe"
         $output = "innosetup-installer.exe"
         
@@ -51,20 +50,17 @@ jobs:
         Write-Host "Installing Inno Setup..."
         Start-Process -FilePath $output -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait -PassThru
         
-        # Wait a moment for installation to complete
         Start-Sleep -Seconds 10
         
-        # Verify installation
         $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
         if (Test-Path $isccPath) {
-          Write-Host "✓ Inno Setup installed successfully at: $isccPath"
+          Write-Host "Inno Setup installed successfully at: $isccPath"
           & $isccPath
         } else {
-          Write-Host "✗ Inno Setup not found at expected location"
-          # Try alternative locations
+          Write-Host "Inno Setup not found at expected location"
           $altPath = "C:\Program Files\Inno Setup 6\ISCC.exe"
           if (Test-Path $altPath) {
-            Write-Host "✓ Found Inno Setup at: $altPath"
+            Write-Host "Found Inno Setup at: $altPath"
           } else {
             throw "Inno Setup installation failed"
           }
@@ -75,7 +71,7 @@ jobs:
       run: |
         if (-not (Test-Path "LICENSE.txt")) {
           Write-Host "Creating default LICENSE.txt..."
-          @"
+          $licenseText = @"
         MIT License
         
         Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -95,13 +91,13 @@ jobs:
         LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
         OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
         SOFTWARE.
-        "@ | Out-File -FilePath "LICENSE.txt" -Encoding UTF8
+        "@
+          $licenseText | Out-File -FilePath "LICENSE.txt" -Encoding UTF8
         }
       shell: powershell
       
     - name: Build Installer
       run: |
-        # Try multiple possible Inno Setup locations
         $isccPaths = @(
           "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
           "C:\Program Files\Inno Setup 6\ISCC.exe"
@@ -121,26 +117,73 @@ jobs:
         
         Write-Host "Using Inno Setup at: $isccPath"
         
-        # Ensure installer_output directory exists
         if (-not (Test-Path "installer_output")) {
           mkdir installer_output
         }
         
-        # Build the installer
         & $isccPath "DummyBrowser.iss"
         
         if ($LASTEXITCODE -ne 0) {
           throw "Inno Setup build failed with exit code: $LASTEXITCODE"
         }
         
-        # Verify installer was created
         $installerPath = "installer_output\LinkClipboardManager_Setup.exe"
         if (Test-Path $installerPath) {
           $size = (Get-Item $installerPath).Length
-          Write-Host "✓ Installer created successfully: $installerPath ($([math]::Round($size/1MB, 2)) MB)"
+          Write-Host "Installer created successfully: $installerPath ($([math]::Round($size/1MB, 2)) MB)"
         } else {
           throw "Installer file not found at: $installerPath"
         }
+      shell: powershell
+      
+    - name: Create Portable Version
+      run: |
+        $portableDir = "LinkClipboardManager_Portable"
+        $releaseDir = "bin\Release\net7.0-windows"
+        
+        if (Test-Path $portableDir) {
+          Remove-Item $portableDir -Recurse -Force
+        }
+        mkdir $portableDir
+        
+        Copy-Item "$releaseDir\*" $portableDir -Recurse
+        
+        if (Test-Path "README.md") { Copy-Item "README.md" $portableDir }
+        if (Test-Path "LICENSE.txt") { Copy-Item "LICENSE.txt" $portableDir }
+        if (Test-Path "setup_registry.bat") { Copy-Item "setup_registry.bat" $portableDir }
+        
+        $configPath = "$portableDir\config.json"
+        if (-not (Test-Path $configPath)) {
+          $configText = @"
+        {
+          "ShowPrompt": true,
+          "AppName": "Link Clipboard Manager",
+          "ShowSuccessMessage": true
+        }
+        "@
+          $configText | Out-File -FilePath $configPath -Encoding UTF8
+        }
+        
+        $readmeText = @"
+        # Link Clipboard Manager - Portable Version
+        
+        ## Quick Setup
+        1. Run 'setup_registry.bat' as Administrator
+        2. The application will be registered as a browser option
+        3. Right-click any link and choose "Open with Link Clipboard Manager"
+        
+        ## Manual Usage
+        Run: DummyBrowser.exe "https://example.com"
+        
+        ## Configuration
+        Edit config.json to customize behavior.
+        "@
+        $readmeText | Out-File -FilePath "$portableDir\PORTABLE_README.txt" -Encoding UTF8
+        
+        Compress-Archive -Path $portableDir -DestinationPath "LinkClipboardManager_Portable.zip" -Force
+        
+        $zipSize = (Get-Item "LinkClipboardManager_Portable.zip").Length
+        Write-Host "Portable version created: LinkClipboardManager_Portable.zip ($([math]::Round($zipSize/1MB, 2)) MB)"
       shell: powershell
       
     - name: Get version from tag
@@ -156,111 +199,42 @@ jobs:
       with:
         name: Link Clipboard Manager ${{ github.ref_name }}
         body: |
-          ## 🎉 Link Clipboard Manager ${{ github.ref_name }}
+          ## Link Clipboard Manager ${{ github.ref_name }}
           
           A lightweight tool that copies URLs to clipboard instead of opening them in a browser.
           
-          ### 📦 Installation Options
+          ### Installation Options
           
           **Option 1: Easy Installer (Recommended)**
-          1. Download `LinkClipboardManager_Setup.exe` below
+          1. Download LinkClipboardManager_Setup.exe below
           2. Run as Administrator
           3. Follow the installation wizard
           4. The app will be automatically registered as a browser option
           
           **Option 2: Portable Version**
-          1. Download `LinkClipboardManager_Portable.zip`
+          1. Download LinkClipboardManager_Portable.zip
           2. Extract to any folder
-          3. Run `setup_registry.bat` as Administrator to register
+          3. Run setup_registry.bat as Administrator to register
           
-          **Option 3: Build from Source**
-          ```bash
-          git clone https://github.com/cumulus13/DummyBrowser.git
-          cd DummyBrowser
-          dotnet build -c Release
-          cd bin\Release\net7.0-windows
-          # Run setup_registry.bat as Administrator
-          ```
+          ### Features
+          - Copies links to clipboard instead of opening browser
+          - Configurable via JSON file
+          - Easy Windows integration
+          - Professional installer
+          - Auto-update notifications
           
-          ### ✨ Features
-          - 📋 Copies links to clipboard instead of opening browser
-          - ⚙️ Configurable via JSON file
-          - 🔧 Easy Windows integration
-          - 🎨 Professional installer
-          - 🔄 Auto-update notifications
+          ### Configuration
+          Edit config.json to customize:
+          - ShowPrompt: Show confirmation dialog
+          - AppName: Display name
+          - ShowSuccessMessage: Show success notification
           
-          ### 🔧 Configuration
-          Edit `config.json` to customize:
-          - `ShowPrompt`: Show confirmation dialog
-          - `AppName`: Display name
-          - `ShowSuccessMessage`: Show success notification
-          
-          ### 📝 Release Info
-          - **Built from:** ${{ github.sha }}
-          - **Build date:** ${{ github.event.head_commit.timestamp }}
-          - **Platform:** Windows (.NET 7.0)
+          ### Release Info
+          - Built from: ${{ github.sha }}
+          - Build date: ${{ github.event.head_commit.timestamp }}
+          - Platform: Windows (.NET 7.0)
         files: |
           installer_output/LinkClipboardManager_Setup.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Create Portable Version
-      run: |
-        # Create portable package
-        $portableDir = "LinkClipboardManager_Portable"
-        $releaseDir = "bin\Release\net7.0-windows"
-        
-        if (Test-Path $portableDir) {
-          Remove-Item $portableDir -Recurse -Force
-        }
-        mkdir $portableDir
-        
-        # Copy application files
-        Copy-Item "$releaseDir\*" $portableDir -Recurse
-        
-        # Copy additional files
-        if (Test-Path "README.md") { Copy-Item "README.md" $portableDir }
-        if (Test-Path "LICENSE.txt") { Copy-Item "LICENSE.txt" $portableDir }
-        if (Test-Path "setup_registry.bat") { Copy-Item "setup_registry.bat" $portableDir }
-        
-        # Create default config if not exists
-        $configPath = "$portableDir\config.json"
-        if (-not (Test-Path $configPath)) {
-          @"
-        {
-          "ShowPrompt": true,
-          "AppName": "Link Clipboard Manager",
-          "ShowSuccessMessage": true
-        }
-        "@ | Out-File -FilePath $configPath -Encoding UTF8
-        }
-        
-        # Create portable readme
-        @"
-        # Link Clipboard Manager - Portable Version
-        
-        ## Quick Setup
-        1. Run 'setup_registry.bat' as Administrator
-        2. The application will be registered as a browser option
-        3. Right-click any link and choose "Open with Link Clipboard Manager"
-        
-        ## Manual Usage
-        Run: DummyBrowser.exe "https://example.com"
-        
-        ## Configuration
-        Edit config.json to customize behavior.
-        "@ | Out-File -FilePath "$portableDir\PORTABLE_README.txt" -Encoding UTF8
-        
-        # Create zip
-        Compress-Archive -Path $portableDir -DestinationPath "LinkClipboardManager_Portable.zip" -Force
-        
-        $zipSize = (Get-Item "LinkClipboardManager_Portable.zip").Length
-        Write-Host "✓ Portable version created: LinkClipboardManager_Portable.zip ($([math]::Round($zipSize/1MB, 2)) MB)"
-      shell: powershell
-      
-    - name: Upload Portable to Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: LinkClipboardManager_Portable.zip
+          LinkClipboardManager_Portable.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
